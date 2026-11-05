@@ -9,7 +9,7 @@ Use issues for bugs and design discussion, and pull requests for changes.
 Before opening a pull request, run:
 
 ```sh
-blueprint run check
+kai run check
 ```
 
 Report a suspected vulnerability privately, as [SECURITY.md](SECURITY.md)

@@ -9,23 +9,22 @@ and how you checked it. A bug fix or a new behaviour comes with a test.
 
 == Set up
 
-You need three things:
+You need two things:
 
-* The `blueprint` command from
-  https://github.com/lukewilliamboswell/roc-blueprint[roc-blueprint], at the
-  release named by the platform URL at the top of `Blueprint.roc`. Download the
-  binary for your system from that release and check it against the release's
-  `blueprint.sha256`, make it executable and put it on `PATH`.
-* A current Roc https://github.com/roc-lang/nightlies/releases[nightly] on your
-  `PATH` as `roc`.
-* The host tools listed in `Expect` in `Blueprint.roc`: `chmod`, `gh`, `git`,
-  `gzip`, `realpath`, `sh`, `shasum`, `tar`, `test`, `touch`, `unzip` and `zip`.
+* https://nixos.org/download/[Nix].
+* The `kai` command from https://github.com/thebrandonlucas/kai[Kai], at
+  release 0.0.11 or later, which runs on Linux:
++
+[source,sh]
+----
+curl -fsSL https://github.com/thebrandonlucas/kai/releases/download/v0.0.11/install.sh | sh -s -- --version v0.0.11
+----
 
-Nix is not needed. The file and archive tools supplied by Linux and macOS
-work; GNU coreutils is not required. Install GitHub CLI (`gh`) separately.
-Blueprint downloads the pinned tooling compiler and its Roc packages on first
-use. Run `blueprint update` after changing its declarations, and commit the
-lock file. A checkout already has the lock it needs.
+`Kaifile.roc` declares the environment and the tasks. Kai provides both
+compilers, `gh`, `git` and the file and archive tools from Nix, and downloads
+the locked released utilities. Run `kai update` after changing its
+declarations, and commit `.kai/lock.json`. A checkout already has the lock it
+needs.
 
 == Two compilers
 
@@ -34,41 +33,44 @@ lock file. A checkout already has the lock it needs.
 | Command | Chosen by | Used for
 
 | `roc`
-| You: the latest nightly
+| The roc-overlay revision in `.kai/lock.json`: the latest nightly when it was updated
 | Checking, testing, bundling and running the package and its examples
 
 | `roc-stable`
-| The release named in `Blueprint.roc`
+| The nightly `Kaifile.roc` aliases as `roc-stable`, which must equal the one in `Blueprint.roc`
 | Running the scripts under `scripts/`
 |===
 
 The package is always tested with the newest compiler, because that is what its
 users install. `roc-stable` exists so the repository's own tooling keeps
 working on the day a nightly breaks something. It never checks or builds the
-package, and it only exists inside `blueprint run` and `blueprint shell`.
+package, and it only exists inside `kai run` and `kai shell`. Run `kai update roc` to move
+`roc` to the latest nightly.
 
 Nothing pins a compiler for the package or the examples. Each script names
 `roc-stable`'s release in its `roc` header field, so that running one with a
 different compiler says why it misbehaves.
 
-The released SBOM utility is a checksum-locked native executable from the Blueprint
-release named in `Blueprint.roc`. `blueprint run prepare-sbom` checks the
+The released SBOM utility is a checksum-locked native executable from the
+roc-blueprint release named in `Kaifile.roc`. `kai run prepare-sbom` checks the
 source and prepares the reviewed composition. The release workflow uses
 roc-automation's shared `sbom-sidecars` action to generate and check the
-sidecars; `blueprint run sbom-tool` exposes the native tool for local
-inspection. Blueprint embeds its configuration compiler.
+sidecars; `kai run sbom-tool` exposes the native tool for local inspection.
+The shared release workflow still installs roc-blueprint, which reads
+`Blueprint.roc` and `Blueprint.lock`, so both stay beside `Kaifile.roc`.
 
 == Run the checks
 
 [source,sh]
 ----
-blueprint run check      # source, scripts, fuzz corpus and site checks
-blueprint run release-package -- test-examples  # recorded example output
-blueprint shell          # or enter the environment and run scripts directly
-blueprint tasks          # list every task
+kai run check      # source, scripts, fuzz corpus and site checks
+kai run release-package -- test-examples  # recorded example output
+kai workflow ci     # both of the above
+kai shell          # or enter the environment and run scripts directly
+kai run --help     # list every task
 ----
 
-`blueprint run check` runs `scripts/check_all.roc`, which:
+`kai run check` runs `scripts/check_all.roc`, which:
 
 . Fails if a compiler pin appears outside `scripts/`, or a script's pin differs
   from `Blueprint.roc`.
@@ -118,11 +120,11 @@ recorded too:
 
 [source,sh]
 ----
-blueprint run release-package -- test-examples --update
+kai run release-package -- test-examples --update
 ----
 
-Blueprint provisions the locked, released `release-package` utility used by
-the shared release workflow. It tests with the `roc` on `PATH` and rewrites `tests/spec.json` from what the examples
+Kai provisions the locked, released `release-package` utility used by
+the shared release workflow. It tests with the environment's `roc` and rewrites `tests/spec.json` from what the examples
 print now. Review the diff like any other change. An example that cannot run for a reason outside
 this repository is skipped in the specification with a `reason` and an `issue`
 link; a skip without both is rejected.
@@ -157,18 +159,18 @@ https://lukewilliamboswell.github.io/roc-automation/documentation.html#write-pro
 The manual is the AsciiDoc under `docs/`, one chapter per file, rendered by the
 shared https://lukewilliamboswell.github.io/roc-automation/#build-docs[build-docs]
 action. Every pull request builds it, and the site can be downloaded from the
-`Documentation` workflow run. Blueprint provisions the locked native renderer
-from the roc-automation release named in `Blueprint.roc`; no container or sibling checkout is needed:
+`Documentation` workflow run. Kai provisions the locked native renderer
+from the roc-automation release named in `Kaifile.roc`; no container or sibling checkout is needed:
 
 [source,sh]
 ----
-blueprint run install-snippet
-blueprint run docs -- --docs-version main
-blueprint run serve
+kai run install-snippet
+kai run docs -- --docs-version main
+kai run serve
 ----
 
 The README's screenshot, `assets/pretty-errors.svg`, is the deploy
-example's source and real output. Re-record it with `blueprint run capture`
+example's source and real output. Re-record it with `kai run capture`
 whenever that example or its diagnostics change.
 
 The first command writes the parts of the manual that depend on what has been

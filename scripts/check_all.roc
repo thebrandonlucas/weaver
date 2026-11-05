@@ -16,7 +16,7 @@ import src/Site
 
 ## Everything checked before the release workflow packages anything.
 ##
-##     blueprint run check
+##     kai run check
 ##
 ## Two compilers take part. `roc-stable`, pinned by Blueprint.roc, runs this
 ## script and checks the other scripts. The package and the fuzz targets are

@@ -30,8 +30,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install blueprint without Nix
-        uses: ./.github/actions/setup-blueprint
+      - name: Install Kai
+        uses: ./.github/actions/setup-kai
 
       - name: Install the latest Roc nightly
         uses: roc-lang/setup-roc@f5a74bf90aa694b43ab4a7cbfdb19273bc6aa697
@@ -47,11 +47,12 @@ jobs:
           label: roc-docs tools-0.9.0
           measure: 'true'
           output-directory: .docs-out
+          blueprint-binary: kai
 
       - name: Write the parts of the manual that depend on what is released
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 "${{ steps.renderer.outputs.measure-script }}" --label preparation --metrics "$RUNNER_TEMP/docs-preparation.json" -- blueprint run install-snippet
+        run: python3 "${{ steps.renderer.outputs.measure-script }}" --label preparation --metrics "$RUNNER_TEMP/docs-preparation.json" -- kai run install-snippet
 
       - id: docs
         name: Render the manual as a site and a PDF
@@ -67,7 +68,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           FETCH_RELEASE_DOCS: "1"
           SITE_OUTPUT: ${{ steps.docs.outputs.site-directory }}
-        run: python3 "${{ steps.renderer.outputs.measure-script }}" --label api --metrics "$RUNNER_TEMP/docs-api.json" --output "$SITE_OUTPUT" -- blueprint run site
+        run: python3 "${{ steps.renderer.outputs.measure-script }}" --label api --metrics "$RUNNER_TEMP/docs-api.json" --output "$SITE_OUTPUT" -- kai run site
 
       - name: Retain documentation measurements
         if: always() && steps.renderer.outputs.metrics-path != ''
