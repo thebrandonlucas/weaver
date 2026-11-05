@@ -13,7 +13,7 @@ which gives the reasons behind each practice.
 
 | `release.yml`
 | Manual dispatch; pull requests as a dry run
-| The working tree passes `blueprint run check` and its examples on the latest nightly, and the exact bundle, examples archive, documentation and SBOM sidecars proposed for publication work
+| The working tree passes the `check` task and its examples on the latest nightly, and the exact bundle, examples archive, documentation and SBOM sidecars proposed for publication work
 
 | `nightly.yml`
 | Daily
@@ -27,8 +27,8 @@ which gives the reasons behind each practice.
 `release.yml` is a thin caller of roc-automation's shared
 https://lukewilliamboswell.github.io/roc-automation/workflows.html#the-shared-release-workflow-for-a-pure-package[release workflow]
 at a full commit SHA. The shared workflow owns the jobs; this repository owns
-its package, examples, `tests/spec.json`, notes and the Blueprint tasks the
-workflow calls: `check`, `prepare-sbom`, `install-snippet` and `docs-path`.
+its package, examples, `tests/spec.json`, notes and the tasks the workflow
+calls from `Blueprint.roc`: `check`, `prepare-sbom`, `install-snippet` and `docs-path`.
 The required status checks are `Release / Build and test the source`,
 `Release / Test the release candidate`, `Validate source SBOMs` and
 `Build the manual and site`.
@@ -36,26 +36,30 @@ The pull-request SBOM job independently validates the SPDX 2.3 schema and
 checks the supplier-import regression fixtures. The shared workflow checks
 sidecar bindings before publication.
 
-The package is pure Roc, so CI uses Linux without Nix. The local setup action
-pins a reviewed roc-automation revision and selects the Blueprint release
-from the platform URL in `Blueprint.roc`. The shared installer verifies and caches the CLI by release, system and
-executable digest. Blueprint embeds its configuration compiler; the separate
-`roc-stable` script compiler remains pinned, and the package nightly floats.
+The release workflow installs roc-blueprint with roc-automation's shared
+installer, which selects the Blueprint release from the platform URL in
+`Blueprint.roc`, and runs those tasks from `Blueprint.roc` without Nix. The
+documentation and SBOM jobs use Kai instead: the local setup action
+`.github/actions/setup-kai` installs Nix and Kai 0.0.11, restores Kai's
+download cache (`~/.cache/kai`, keyed by job and lock) and runs `kai check`.
+The `roc-stable` script compiler stays pinned, and the package nightly floats.
 
 SBOM generation uses roc-automation's shared `sbom-sidecars` action. The
 `prepare-sbom` task checks the bundle against the committed source and writes
 the reviewed composition, and the committed `sbom/imports.json` records the
 suppliers' SBOMs; the shared action owns generation and binding.
 
-Downloaded utilities and compiler archives use Blueprint's verified artifact
-cache, keyed by workflow, job, Blueprint release and lock. Extracted trees are
-recreated and verified, while Roc package sources have a separate cache. A cold
-job downloads the locked utilities; a warm job restores and verifies them.
-Changing the lock invalidates the corresponding cache key. The floating nightly
-may still need a fresh download when its version changes.
+In the release workflow, downloaded utilities and compiler archives use
+Blueprint's verified artifact cache, keyed by workflow, job, Blueprint release
+and lock. Extracted trees are recreated and verified, while Roc package sources
+have a separate cache. A cold job downloads the locked utilities; a warm job
+restores and verifies them. Changing the lock invalidates the corresponding
+cache key. The floating nightly may still need a fresh download when its
+version changes.
 
-The documentation jobs use `blueprint-tool` to resolve `docs-path` to the
-verified renderer in the store. CI reports executable digest and bytes,
+The documentation jobs use `blueprint-tool`, with `kai` as its binary, to
+resolve `docs-path` to the verified renderer in the store. CI reports
+executable digest and bytes,
 provisioning duration, native rendering time and peak RSS, output file sizes,
 and separate preparation and API generation timings. Rendering uses a
 precompiled Roc binary. The site's HTML,
@@ -71,37 +75,46 @@ pass. Exact release and nightly overrides provide read-only diagnostic reruns.
 
 Nothing updates the tooling automatically. Each of these is a pull request.
 
-Refresh the lock:: Run `blueprint update` and commit `Blueprint.lock`.
-Change the tooling compiler:: Change the tag in `Fetch("roc-stable", Recipes.roc_nightly(...))` in
-`Blueprint.roc` and the `roc` field of every script to the same nightly. The
-check fails until they agree. Run `blueprint update roc-stable` and fix any
-script the new compiler breaks.
-Upgrade Blueprint:: Change the platform URL at the top of `Blueprint.roc`, and
-the pinned shared setup action in `.github/actions/setup-blueprint/action.yml`.
-Use a shared revision that records that release's checksums, or supply reviewed
-`sha256-*` overrides in the local action when adopting a release ahead of its
-registry. Remove overrides when the shared registry covers the release.
+Refresh the lock:: Run `kai update` and commit `.kai/lock.json`. Run
+`blueprint update` and commit `Blueprint.lock` for the release workflow.
+Change the tooling compiler:: Change the tag in `Alias("roc-stable", ...)` in
+`Kaifile.roc`, in `Fetch("roc-stable", Recipes.roc_nightly(...))` in
+`Blueprint.roc` and in the `roc` field of every script to the same nightly.
+The check fails until the scripts and `Blueprint.roc` agree. The roc-overlay
+revision in `.kai/lock.json` must record that nightly: run `kai update roc`,
+then `blueprint update roc-stable`, and fix any script the new compiler breaks.
+Move the package compiler:: Run `kai update roc` to move `roc` to the latest
+nightly roc-overlay records.
+Upgrade Kai:: Change the platform and std URLs at the top of `Kaifile.roc` to
+the new release's, as `kai init` writes them, and the version in
+`.github/actions/setup-kai/action.yml`.
+Upgrade Blueprint:: Change the platform URL at the top of `Blueprint.roc`.
+The shared release workflow installs it with its own setup action, so a
+roc-automation revision that records that release's checksums is needed.
 Upgrade roc-automation:: Move every `lukewilliamboswell/roc-automation` reference
 in `.github/` to the same reviewed full SHA, and the `roc-docs` and
-`release-package` releases in `Blueprint.roc` to the matching `tools-*` tag.
-Run `blueprint update roc-docs release-package` and compare each declared
-system's SHA-256 with the release's `sha256sums.txt`. The downstream dashboard reports a repository as current only when
+`release-package` releases in `Kaifile.roc` and `Blueprint.roc` to the matching
+`tools-*` tag, with the SHA-256s each release's `sha256sums.txt` publishes in
+`Kaifile.roc`. Run `kai update` and `blueprint update roc-docs release-package`
+and compare each declared system's SHA-256 with the release's
+`sha256sums.txt`. The downstream dashboard reports a repository as current only when
 every reference matches roc-automation's `main`.
 Run `blueprint update` and review `blueprint lock show --json` (format 2)
-as well as the lock diff.
+as well as the lock diffs.
 Update a package dependency:: Change its URL in the header of
-`package/main.roc` and in its `SourceFile` in `Blueprint.roc`, with the SHA-256
-the supplier's release publishes for the file, and its `version` in
-`sbom/package.json`. Run `blueprint update`. Then delete `sbom/imports.json`
+`package/main.roc`, in its `Source` in `Kaifile.roc` and in its `SourceFile` in
+`Blueprint.roc`, with the SHA-256 the supplier's release publishes for the
+file, and its `version` in `sbom/package.json`. Run `kai update` and
+`blueprint update`. Then delete `sbom/imports.json`
 and regenerate it with roc-automation's `fetch-dependency-sboms` action at the
 revision `release.yml` pins, as that workflow's composition step describes, and
 review the supplier documents it records. If the supplier publishes no SBOM,
 give the component an `unavailable_sboms` entry with the reason instead.
-`blueprint run check` fails until the header and the lock agree, and the release
+`kai run check` fails until the header and `Blueprint.lock` agree, and the release
 dry run fails until the imports match what the suppliers publish.
-Update a script dependency:: Change its URL in every script header and under
-`RocPackages` in `Blueprint.roc`. Task-only Roc bundles are content-addressed
-and are not recorded in the lock.
+Update a script dependency:: Change its URL in every script header, in its
+`Source` in `Kaifile.roc` and under `RocPackages` in `Blueprint.roc`, and run
+`kai update`.
 
 == Make a release
 
@@ -120,7 +133,7 @@ roc bump --old <latest release bundle URL> package/main.roc
 
 The workflow then:
 
-. Runs `blueprint run check`, then rejects a version that already exists, one
+. Runs the `check` task with Blueprint, then rejects a version that already exists, one
   with no notes, and one that `roc bump --expect` says understates the change.
 . Runs the examples against the working tree and compares them with
   `tests/spec.json`.
@@ -164,7 +177,7 @@ notes file.
 == How the site is put together
 
 The site is this manual, rendered by the shared build-docs action, with the
-API reference added beside it by `blueprint run site`:
+API reference added beside it by `kai run site`:
 
 * `main/` holds fresh API documentation for the working tree.
 * Each release's API documentation sits under its version, such as `<version>/`,
@@ -174,7 +187,7 @@ API reference added beside it by `blueprint run site`:
 
 The manual leads with the latest release: its first program, its API reference
 and its examples archive. Those parts are written by
-`blueprint run install-snippet` before the manual is rendered, because a bundle
+`kai run install-snippet` before the manual is rendered, because a bundle
 URL holds a hash nobody can write by hand.
 
 `docs.yml` builds the site on every pull request and deploys it from `main`

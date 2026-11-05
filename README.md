@@ -47,7 +47,7 @@ describes each one.
 See [CONTRIBUTING.md](CONTRIBUTING.md). Everything CI checks runs locally with:
 
 ```sh
-blueprint run check
+kai run check
 ```
 
 Report a suspected vulnerability privately, as [SECURITY.md](SECURITY.md) describes.

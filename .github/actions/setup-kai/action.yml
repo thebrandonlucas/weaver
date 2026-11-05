@@ -1,0 +1,36 @@
+name: Set up Kai
+description: Install Nix and the released Kai, restore Kai's download cache and check Kaifile.roc.
+
+runs:
+  using: composite
+  steps:
+    # The development environment comes from Nix: roc-overlay's compilers and
+    # nixpkgs tools.
+    - name: Install Nix
+      uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+      with:
+        github_access_token: ${{ github.token }}
+
+    - name: Install Kai
+      shell: bash
+      run: |
+        curl -fsSL https://github.com/thebrandonlucas/kai/releases/download/v0.0.11/install.sh | sh -s -- --version v0.0.11
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+    - name: Restore Kai's downloads
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: ~/.cache/kai
+        key: kai-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-${{ hashFiles('Kaifile.roc', '.kai/lock.json') }}
+        restore-keys: kai-${{ runner.os }}-${{ runner.arch }}-${{ github.job }}-
+
+    # Validate the configuration, fetching the compiler Kai evaluates it with,
+    # before installing the floating package compiler.
+    - name: Check Kaifile.roc
+      shell: bash
+      run: |
+        start=$SECONDS
+        kai check
+        elapsed=$((SECONDS - start))
+        echo "Kai configuration check: $elapsed seconds"
+        printf '\n### Kai configuration check\n\n%s seconds, including fetching the compiler Kai evaluates Kaifile.roc with.\n' "$elapsed" >> "$GITHUB_STEP_SUMMARY"

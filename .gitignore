@@ -6,3 +6,5 @@ dist/
 target/
 docs/generated/
 .roc-fuzz/
+/.kai/*
+!/.kai/lock.json
