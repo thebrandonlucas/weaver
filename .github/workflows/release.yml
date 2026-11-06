@@ -5,7 +5,7 @@ name: Release
 # then the exact bundle, examples archive, API docs archive, SBOM sidecars and
 # manual, and the archived examples against that bundle. Dispatch from main
 # with a version to publish the same files. The shared workflow owns the jobs;
-# this repository owns its package, examples, notes and Blueprint tasks.
+# this repository owns its package, examples, notes and Kai tasks.
 on:
   pull_request:
   workflow_dispatch:
@@ -27,7 +27,12 @@ jobs:
       contents: write
       id-token: write
       attestations: write
-    uses: lukewilliamboswell/roc-automation/.github/workflows/release-package.yml@e12512e2605608588782edb044dd766137e34869
+    # TODO(thebrandonlucas/roc-automation): the fork's release-package.yml with
+    # a Kai path beside the Blueprint one: Kai's setup-kai action, `kai run`
+    # for every task, fetch-dependency-sboms reading `kai sbom pins`,
+    # sbom-sidecars running `kai sbom inspect`, `bind` and `check`, and a
+    # kai-tool action for docs-path. Pinned to the head of the fork's kai branch.
+    uses: thebrandonlucas/roc-automation/.github/workflows/release-package.yml@fc8199ada458fca181b7d197bc9eb7b58a2822ff
     with:
       version: ${{ inputs.version || '' }}
       nightly-tag: ${{ inputs.nightly-tag || '' }}
@@ -55,7 +60,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-blueprint
+      - uses: ./.github/actions/setup-kai
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -77,4 +82,4 @@ jobs:
           "$RUNNER_TEMP/sbom-validator/bin/check-jsonschema" --schemafile sbom/schema/weaver-source.schema.json dist/*.spdx-2.3.json
 
       - name: Source SBOMs enter source and native inventories
-        run: python3 tests/supply-chain/blueprint-source-import/check.py
+        run: python3 tests/supply-chain/source-import/check.py

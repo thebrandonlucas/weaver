@@ -13,13 +13,13 @@ Headers := [].{
 	is_app : Str -> Bool
 	is_app = |source| header_onwards(Str.split_on(source, "\n")).starts_with("app ")
 
-	## The release tag that the text of `Blueprint.roc` names as `roc-stable`.
+	## The release tag that the text of `Kaifile.roc` names as `roc-stable`.
 	stable_tag : Str -> Try(Str, [NoStableCompiler])
-	stable_tag = |blueprint| {
-		# Whitespace may change when roc fmt wraps the Fetch declaration.
-		lines = Str.split_on(blueprint, "\n").map(|line| line.trim()).keep_if(|line| !line.starts_with("#"))
+	stable_tag = |kaifile| {
+		# Whitespace may change when roc fmt wraps the FetchLocked declaration.
+		lines = Str.split_on(kaifile, "\n").map(|line| line.trim()).keep_if(|line| !line.starts_with("#"))
 		compact = Str.join_with(Str.split_on(Str.join_with(lines, ""), " "), "")
-		match Str.split_on(compact, "Fetch(\"roc-stable\",Recipes.roc_nightly(\"") {
+		match Str.split_on(compact, "FetchLocked(\"roc-stable\",roc_nightly(\"") {
 			[_, after] =>
 				match Str.split_first(after, "\"") {
 					Ok({ before, .. }) if before != "" => Ok(before)
@@ -80,11 +80,11 @@ expect Headers.roc_pin("#!/usr/bin/env roc-stable\napp [main!] {\n\tcli: platfor
 expect Headers.roc_pin(example) == Err(MissingDependency("roc"))
 expect Headers.is_app(example) and Headers.is_app("#!/usr/bin/env roc-stable\napp [main!] {}\n")
 expect !Headers.is_app("package [Cli] {}\n") and !Headers.is_app("Files := [].{\n\tapp = 1\n}\n")
-stable_declaration = "Fetch(\"roc-stable\", Recipes.roc_nightly(\"nightly-2026-10-23-18478ff\"))"
+stable_declaration = "FetchLocked(\"roc-stable\", roc_nightly(\"nightly-2026-10-23-18478ff\"))"
 expect Headers.stable_tag(stable_declaration) == Ok("nightly-2026-10-23-18478ff")
-expect Headers.stable_tag("Programs([\n\tFetch(\n\t\t\"roc-stable\",\n\t\tRecipes.roc_nightly(\"nightly-2026-10-23-18478ff\"),\n\t),\n])") == Ok("nightly-2026-10-23-18478ff")
+expect Headers.stable_tag("project = [\n\tFetchLocked(\n\t\t\"roc-stable\",\n\t\troc_nightly(\"nightly-2026-10-23-18478ff\"),\n\t),\n])") == Ok("nightly-2026-10-23-18478ff")
 expect Headers.stable_tag("# `roc-stable` is the release named below\n") == Err(NoStableCompiler)
-expect Headers.stable_tag("Fetch(\"roc-stable\", Recipes.roc_nightly(\"\"))") == Err(NoStableCompiler)
+expect Headers.stable_tag("FetchLocked(\"roc-stable\", roc_nightly(\"\"))") == Err(NoStableCompiler)
 expect Headers.stable_tag("${stable_declaration}\n${stable_declaration}") == Err(NoStableCompiler)
 expect Headers.stable_tag("# ${stable_declaration}\n") == Err(NoStableCompiler)
 expect Headers.stable_tag("# ${stable_declaration}\n${stable_declaration}") == Ok("nightly-2026-10-23-18478ff")
