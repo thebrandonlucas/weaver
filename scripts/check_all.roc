@@ -16,9 +16,9 @@ import src/Site
 
 ## Everything checked before the release workflow packages anything.
 ##
-##     blueprint run check
+##     kai run check
 ##
-## Two compilers take part. `roc-stable`, pinned by Blueprint.roc, runs this
+## Two compilers take part. `roc-stable`, pinned by Kaifile.roc, runs this
 ## script and checks the other scripts. The package and the fuzz targets are
 ## checked with the `roc` on PATH, which is meant to be the latest nightly. The
 ## examples, the bundle and the archives are the shared release workflow's job:
@@ -43,7 +43,7 @@ main! = |_args| {
 }
 
 # The package compiler floats, so nothing outside scripts/ names a compiler.
-# Each script names the tooling compiler, and Blueprint.roc is the authority:
+# Each script names the tooling compiler, and Kaifile.roc is the authority:
 # someone who runs a script with another `roc` is then told why it misbehaves.
 check_compiler_pins! = || {
 	Script.section!("Compiler pins")?
@@ -59,32 +59,35 @@ check_compiler_pins! = || {
 			}
 		}
 	}
-	tag = match Headers.stable_tag(Path.read_utf8!("Blueprint.roc")?) {
+	tag = match Headers.stable_tag(Path.read_utf8!("Kaifile.roc")?) {
 		Ok(value) => value
-		Err(NoStableCompiler) => return Script.fail!("Blueprint.roc does not name roc-stable with Fetch(\"roc-stable\", Recipes.roc_nightly(\"<tag>\"))")
+		Err(NoStableCompiler) => return Script.fail!("Kaifile.roc does not name roc-stable with FetchLocked(\"roc-stable\", roc_nightly(\"<tag>\"))")
 	}
 	for file in Files.roc_sources!("scripts")?.keep_if(|script| Headers.is_app(script.source)) {
 		if Headers.roc_pin(file.source) != Ok(tag) {
-			return Script.fail!("${Path.display(file.path)}: the app header must declare roc: \"${tag}\", the roc-stable release in Blueprint.roc")
+			return Script.fail!("${Path.display(file.path)}: the app header must declare roc: \"${tag}\", the roc-stable release in Kaifile.roc")
 		}
 	}
 	Script.pass!("only the scripts name a compiler, and it is ${tag}")
 }
 
-# The release's SBOM binds each supplier's SBOM to the file Blueprint.lock pins,
+# The release's SBOM binds each supplier's SBOM to the file Kaifile.roc pins,
 # so the package must depend on exactly the bundles pinned there.
 check_dependency_pins! = |roc| {
 	Script.section!("Dependency pins")?
 	resolved = match Dependencies.resolved(roc.capture_utf8!(["deps", "package/main.roc"], ".")?) {
 		Ok(urls) => urls
-		Err(TransitiveDependency(url)) => return Script.fail!("${url} is a dependency of a dependency: review sbom/package.json and pin it in Blueprint.roc")
+		Err(TransitiveDependency(url)) => return Script.fail!("${url} is a dependency of a dependency: review sbom/package.json and pin it in Kaifile.roc")
 		Err(UnexpectedDepsOutput(_)) => return Script.fail!("could not read the output of roc deps package/main.roc")
 	}
-	locked = Dependencies.locked(Path.read_utf8!("Blueprint.lock")?)
-	if !Dependencies.agree(resolved, locked) {
-		return Script.fail!("package/main.roc depends on ${Str.join_with(resolved, ", ")}, but Blueprint.lock pins ${Str.join_with(locked, ", ")}: change the SourceFile entries in Blueprint.roc to match and run blueprint update")
+	locked = match Dependencies.locked(Script.command("kai").capture_utf8!(["sbom", "pins"], ".")?) {
+		Ok(urls) => urls
+		Err(UnexpectedPinsOutput(_)) => return Script.fail!("could not read the output of kai sbom pins")
 	}
-	Script.pass!("package/main.roc depends on exactly the ${resolved.len().to_str()} bundles Blueprint.lock pins")
+	if !Dependencies.agree(resolved, locked) {
+		return Script.fail!("package/main.roc depends on ${Str.join_with(resolved, ", ")}, but Kaifile.roc pins ${Str.join_with(locked, ", ")}: change its FetchAll entries to match")
+	}
+	Script.pass!("package/main.roc depends on exactly the ${resolved.len().to_str()} bundles Kaifile.roc pins")
 }
 
 check_scripts! = |roc_stable| {

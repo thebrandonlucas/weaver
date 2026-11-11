@@ -5,7 +5,7 @@ name: Release
 # then the exact bundle, examples archive, API docs archive, SBOM sidecars and
 # manual, and the archived examples against that bundle. Dispatch from main
 # with a version to publish the same files. The shared workflow owns the jobs;
-# this repository owns its package, examples, notes and Blueprint tasks.
+# this repository owns its package, examples, notes and Kai tasks.
 on:
   pull_request:
   workflow_dispatch:
@@ -27,7 +27,12 @@ jobs:
       contents: write
       id-token: write
       attestations: write
-    uses: lukewilliamboswell/roc-automation/.github/workflows/release-package.yml@8afe656ea7de5586233683088eb6972b770f6832
+    # TODO(thebrandonlucas/roc-automation): the fork's release-package.yml with
+    # a Kai path beside the Blueprint one: Kai's setup-kai action, `kai run`
+    # for every task, fetch-dependency-sboms reading `kai sbom pins`,
+    # sbom-sidecars running `kai sbom inspect`, `bind` and `check`, and a
+    # kai-tool action for docs-path. Pinned to the head of the fork's kai branch.
+    uses: thebrandonlucas/roc-automation/.github/workflows/release-package.yml@fc8199ada458fca181b7d197bc9eb7b58a2822ff
     with:
       version: ${{ inputs.version || '' }}
       nightly-tag: ${{ inputs.nightly-tag || '' }}
@@ -55,7 +60,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: ./.github/actions/setup-blueprint
+      - uses: ./.github/actions/setup-kai
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -77,15 +82,4 @@ jobs:
           "$RUNNER_TEMP/sbom-validator/bin/check-jsonschema" --schemafile sbom/schema/weaver-source.schema.json dist/*.spdx-2.3.json
 
       - name: Source SBOMs enter source and native inventories
-        run: |
-          set -euo pipefail
-          fixture=tests/supply-chain/blueprint-source-import
-          for target in source x86_64-linux aarch64-linux; do
-            blueprint run sbom-tool -- inspect "$fixture/Spec" "$fixture/Lock" "$fixture/composition.json" "$target" "$RUNNER_TEMP/source-import-$target.json"
-          done
-          jq '.imported_documents[0].sha256 = ("0" * 64)' "$fixture/composition.json" > "$RUNNER_TEMP/bad-supplier.json"
-          if blueprint run sbom-tool -- inspect "$fixture/Spec" "$fixture/Lock" "$RUNNER_TEMP/bad-supplier.json" x86_64-linux "$RUNNER_TEMP/invalid-import.json" > "$RUNNER_TEMP/invalid-import.log" 2>&1; then
-            echo 'A modified supplier document was accepted' >&2
-            exit 1
-          fi
-          grep -F 'imported SBOM content digest mismatch' "$RUNNER_TEMP/invalid-import.log"
+        run: python3 tests/supply-chain/source-import/check.py

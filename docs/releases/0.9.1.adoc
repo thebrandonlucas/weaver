@@ -40,8 +40,8 @@ app [main!] {
 
 == Tooling and documentation
 
-* Blueprint provides the development environment without Nix, replacing
-  Kai, and the repository scripts are written in Roc instead of Python.
+* A development environment of pinned downloads, without Nix, replaces
+  the earlier one, and the repository scripts are written in Roc instead of Python.
 * roc-automation's shared tools render this manual as HTML, PDF and Markdown.
 * The examples archive holds the canonical roc-automation compatibility suite,
   so the shared nightly runner tests this release on every new nightly.

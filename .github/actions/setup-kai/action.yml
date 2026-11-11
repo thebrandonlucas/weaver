@@ -1,0 +1,24 @@
+name: Set up Kai without Nix
+description: Install Kai, cache its verified downloads, and check Kaifile.roc, for this pure Roc package.
+
+runs:
+  using: composite
+  steps:
+    - name: Install Kai and restore its downloads
+      uses: thebrandonlucas/kai/.github/actions/setup-kai@fd316fbad644f2e52c620ad83385fcc4b9c31372 # v0.0.12
+      with:
+        version: 0.0.12
+        nix: 'false'
+        cache: 'true'
+
+    # Download the Roc compiler Kai pins for compiling Kaifile.roc, and compile
+    # it, before the workflow's next step puts the latest nightly on PATH as
+    # `roc` for the package and examples.
+    - name: Check the configuration
+      shell: bash
+      run: |
+        start=$SECONDS
+        kai check
+        elapsed=$((SECONDS - start))
+        echo "Kai configuration bootstrap and validation: $elapsed seconds"
+        printf '\n### Kai configuration bootstrap\n\n%s seconds, including compiler provisioning, verification and configuration check.\n' "$elapsed" >> "$GITHUB_STEP_SUMMARY"
