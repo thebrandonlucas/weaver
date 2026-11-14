@@ -1,20 +1,19 @@
 name: Set up Kai without Nix
-description: Install Kai, cache its verified downloads, and check Kaifile.roc, for this pure Roc package.
+description: Use the shared installer, which installs the Kai release Kaifile.roc names and caches its verified downloads, for this pure Roc package.
 
 runs:
   using: composite
   steps:
-    - name: Install Kai and restore its downloads
-      uses: thebrandonlucas/kai/.github/actions/setup-kai@fd316fbad644f2e52c620ad83385fcc4b9c31372 # v0.0.12
+    - name: Install the Kai release Kaifile.roc names and restore its downloads
+      uses: lukewilliamboswell/roc-automation/actions/setup-kai@6c796f299012707d2e9bad23fd6449ed93f1f475 # reviewed main
       with:
-        version: 0.0.12
         nix: 'false'
         cache: 'true'
 
     # Download the Roc compiler Kai pins for compiling Kaifile.roc, and compile
     # it, before the workflow's next step puts the latest nightly on PATH as
     # `roc` for the package and examples.
-    - name: Check the configuration
+    - name: Validate configuration and provision the Kai compiler
       shell: bash
       run: |
         start=$SECONDS

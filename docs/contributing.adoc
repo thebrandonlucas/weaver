@@ -74,7 +74,7 @@ kai run check      # source, scripts, fuzz corpus and site checks
 kai run release-package -- test-examples  # recorded example output
 kai workflow ci    # both of the above, in order
 kai shell          # or enter the environment and run scripts directly
-kai --help         # list every task
+kai run            # list every task
 ----
 
 `kai run check` runs `scripts/check_all.roc`, which:

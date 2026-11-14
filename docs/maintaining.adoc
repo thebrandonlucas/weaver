@@ -38,10 +38,11 @@ sidecar bindings before publication.
 
 The package is pure Roc, so CI uses Linux without Nix: every tool is a pinned
 download that Kai's direct backend serves. The local setup action,
-`.github/actions/setup-kai`, installs the Kai release it names with Kai's
-setup-kai action, which checks the download against the release's
-`SHA256SUMS`, then runs `kai check`, which also downloads and verifies the
-compiler that evaluates `Kaifile.roc`. The separate `roc-stable` script
+`.github/actions/setup-kai`, pins a reviewed roc-automation revision whose
+shared setup-kai action installs the Kai release named by the platform URL in
+`Kaifile.roc` and checks it against the release's `SHA256SUMS`. It then runs
+`kai check`, which also downloads and verifies the compiler that evaluates
+`Kaifile.roc`. The separate `roc-stable` script
 compiler remains pinned, and the package nightly floats.
 
 SBOM generation uses roc-automation's shared `sbom-sidecars` action. The
@@ -57,7 +58,7 @@ job downloads the locked utilities; a warm job restores and verifies them.
 Changing the lock invalidates the corresponding cache key. The floating nightly
 may still need a fresh download when its version changes.
 
-The documentation jobs use roc-automation's tool action to resolve `docs-path`
+The documentation jobs use roc-automation's `kai-tool` action to resolve `docs-path`
 to the verified renderer in Kai's store. CI reports executable digest and bytes,
 provisioning duration, native rendering time and peak RSS, output file sizes,
 and separate preparation and API generation timings. Rendering uses a
@@ -80,9 +81,11 @@ Change the tooling compiler:: Change the tag in `FetchLocked("roc-stable", roc_n
 check fails until they agree. Run `kai update roc-stable` and fix any
 script the new compiler breaks.
 Upgrade Kai:: Change the `pf`, `std` and `sbom` URLs at the top of
-`Kaifile.roc` to those a Kai release's notes give, and the `version` and the
-pinned setup-kai action in `.github/actions/setup-kai/action.yml` to the same
-release. Run `kai check`.
+`Kaifile.roc` and `tests/supply-chain/source-import/Kaifile.roc` to those a
+Kai release's notes give, and run `kai check`. The shared setup action
+installs the release the URLs name. The shared SBOM action admits only the
+sbom plugins roc-automation records, so use a roc-automation revision that
+records the new release.
 Upgrade roc-automation:: Move every `lukewilliamboswell/roc-automation` reference
 in `.github/` to the same reviewed full SHA, and the `roc-docs` and
 `release-package` releases in `Kaifile.roc` to the matching `tools-*` tag.
