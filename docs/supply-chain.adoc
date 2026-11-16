@@ -13,7 +13,7 @@ Each source bundle has these sidecars:
 * `<bundle>.cdx.json`: CycloneDX 1.7, from the same inventory.
 * `<bundle>.sbom-inventory.json`: resolved components, relationships and coverage.
 * `<bundle>.sbom-members.json`: every archive member's name, size and SHA-256.
-* `<bundle>.sbom-manifest.json`: Blueprint's manifest binding the SPDX 3
+* `<bundle>.sbom-manifest.json`: the manifest binding the SPDX 3
   and CycloneDX sidecars to subject bytes and inventory.
 * `<bundle>.sbom-evidence.json`: the artifact/sidecar hashes, source commit and
   producing workflow run and attempt, in the shared
@@ -34,8 +34,8 @@ package source.
 The bundle depends on the packages named in the header of
 `package/main.roc`, which it does not contain. The compiler fetches each by
 its immutable URL, and checks it against the content hash in that URL, when an
-application is built. `Blueprint.roc` also pins each of those files as a
-`SourceFile`, by the SHA-256 its release publishes, and every pull request
+application is built. `Kaifile.roc` also pins each of those files with
+`FetchAll`, by the SHA-256 its release publishes, and every pull request
 checks that `roc deps` lists exactly the pinned files.
 
 Each dependency is a `dependsOn` component in the inventory, with the SHA-256
@@ -101,20 +101,21 @@ actual=$(shasum -a 256 "$bundle" | cut -d ' ' -f 1)
 test "$actual" = "$expected"
 ----
 
-With Blueprint's verified native SBOM utility on PATH, validate the downloaded
-manifest against the subject and resolved inventory, and check all three
-sidecars together:
+From a checkout of this repository at the release's tag, with Kai's sbom
+plugin, validate the downloaded manifest against the resolved inventory, and
+check all three sidecars together. It reads no artifact bytes, so the SHA-256
+it reports for the subject is the one the check above compared:
 
 [source,sh]
 ----
-blueprint-sbom check --manifest "$bundle.sbom-manifest.json" \
-  --artifacts . --inventory "$bundle.sbom-inventory.json" "$bundle.spdx-2.3.json"
+kai -f "$checkout/Kaifile.roc" sbom check --manifest "$bundle.sbom-manifest.json" \
+  --inventory "$bundle.sbom-inventory.json" -- "$PWD/$bundle.spdx-2.3.json"
 ----
 
 Also validate the standard schema and read the coverage statements. CI checks
 the SPDX 2.3 rendering against an unchanged, digest-pinned official schema using
-an independent pinned validator. Blueprint separately checks subject bytes,
-resolved inventory and graph agreement across all three formats. Keep your own
+an independent pinned validator. The SBOM checks above separately cover subject
+digests, resolved inventory and graph agreement across all three formats. Keep your own
 admitted copy, expected signer policy and verification results; a short-lived
 Actions artifact is not the release evidence channel.
 
@@ -128,10 +129,10 @@ supplier SBOM to that exact artifact; checking only the SBOM's own checksum does
 not bind it to a package. Keep build-only dependencies distinct from included
 code and from dependencies fetched later.
 
-Blueprint accepts a source supplier into source and native inventories,
+`kai sbom inspect` accepts a source supplier into source and native inventories,
 while preserving its `source` identity and checking exact supplier hashes and
 versions. Native architecture compatibility checks remain strict. The regression
-fixture in `tests/supply-chain/blueprint-source-import/` covers source-to-source,
+fixture in `tests/supply-chain/source-import/` covers source-to-source,
 source-to-Linux-x86_64 and source-to-Linux-arm64 admission, plus integrity refusals.
 Keep source archives as build inputs and describe the resulting executable's
 included code/assets and native closure separately.

@@ -14,7 +14,7 @@ import src/Svg
 ## Render the deploy example's source and its real terminal output as the
 ## README's SVG screenshot.
 ##
-##     blueprint run capture
+##     kai run capture
 ##
 ## Writes `assets/pretty-errors.svg`, or the file named by `OUTPUT`. The
 ## example is built with the `roc` on PATH, the compiler the package is

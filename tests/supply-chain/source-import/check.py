@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise the locked SBOM tool against the original v1 supplier fixture."""
+"""Exercise Kai's sbom plugin against the original v1 supplier fixture."""
 
 import copy
 import json
@@ -15,9 +15,9 @@ def require(condition, message):
 
 def inspect(fixture, composition, target, output):
     return subprocess.run(
-        ["blueprint", "run", "sbom-tool", "--", "inspect",
-         str(fixture / "Spec"), str(fixture / "Lock"), str(composition),
-         target, str(output)],
+        ["kai", "-f", str(fixture / "Kaifile.roc"), "sbom", "inspect",
+         "--composition", str(composition), "--output", str(output),
+         "--", target],
         capture_output=True, text=True, check=False,
     )
 
