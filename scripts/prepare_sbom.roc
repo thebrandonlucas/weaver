@@ -26,11 +26,12 @@ main! = |_args| {
 	output = Path.utf8(Script.env_or!("SBOM_COMPOSITION", "dist/sbom-composition.json")?)
 	Script.require_file!(bundle)?
 	roc = Script.roc!()?
-	# The composition describes the bundles Blueprint.lock pins, with their
+	# The composition describes the bundles Kaifile.roc pins, with their
 	# suppliers' SBOMs bound to those files. Any other closure needs review.
 	resolved = Dependencies.resolved(roc.capture_utf8!(["deps", "package/main.roc"], ".")?).map_err(|_| DependencyClosureChanged)?
-	if !Dependencies.agree(resolved, Dependencies.locked(Path.read_utf8!("Blueprint.lock")?)) {
-		return Script.fail!("package dependency closure changed: pin it in Blueprint.roc and review sbom/package.json before release")
+	locked = Dependencies.locked(Script.command("kai").capture_utf8!(["sbom", "pins"], ".")?).map_err(|_| UnreadablePins)?
+	if !Dependencies.agree(resolved, locked) {
+		return Script.fail!("package dependency closure changed: pin it in Kaifile.roc and review sbom/package.json before release")
 	}
 	# This recipe promises first-party source only. Added members or changed
 	# source/dependency boundaries must receive a composition review.
