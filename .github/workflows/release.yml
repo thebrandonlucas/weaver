@@ -30,7 +30,7 @@ jobs:
     uses: lukewilliamboswell/roc-automation/.github/workflows/release-package.yml@6c796f299012707d2e9bad23fd6449ed93f1f475
     with:
       version: ${{ inputs.version || '' }}
-      nightly-tag: ${{ inputs.nightly-tag || '' }}
+      nightly-tag: ${{ inputs.nightly-tag || 'nightly-2026-11-10-f7d1f19' }}
       check-task: check
       # The bundle's SBOM binds the suppliers' documents recorded in
       # sbom/imports.json; a changed record is refused, never adopted.
